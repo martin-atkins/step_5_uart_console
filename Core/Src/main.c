@@ -31,9 +31,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-	LED_MODE_OFF = 0, LED_MODE_SLOW, LED_MODE_FAST
-} led_mode_t;
 
 typedef struct {
 	led_mode_t mode;
@@ -219,6 +216,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM2) {
 		system_tick_ms++;
 	}
+}
+
+void led_set_mode(led_mode_t mode)
+{
+    led.mode = mode;
+}
+
+led_mode_t led_get_mode(void)
+{
+    return led.mode;
 }
 
 void led_update(led_ctrl_t *ctrl, uint32_t now_ms) {

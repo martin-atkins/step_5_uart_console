@@ -36,6 +36,12 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum
+{
+    LED_MODE_OFF = 0,
+    LED_MODE_SLOW,
+    LED_MODE_FAST
+} led_mode_t;
 
 /* USER CODE END ET */
 
@@ -53,6 +59,8 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+void led_set_mode(led_mode_t mode);
+led_mode_t led_get_mode(void);
 
 /* USER CODE END EFP */
 

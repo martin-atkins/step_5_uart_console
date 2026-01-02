@@ -1,6 +1,8 @@
-../Core/Src/console.c:18:13:console_prompt	1
-../Core/Src/console.c:28:13:console_write	1
-../Core/Src/console.c:38:13:console_handle_command	2
-../Core/Src/console.c:51:6:console_init	1
-../Core/Src/console.c:64:6:task_console	5
-../Core/Src/console.c:101:13:console_process_bytes	11
+../Core/Src/console.c:35:13:console_write	1
+../Core/Src/console.c:40:13:console_prompt	1
+../Core/Src/console.c:46:13:console_handle_command	6
+../Core/Src/console.c:70:6:console_init	1
+../Core/Src/console.c:79:6:task_console	5
+../Core/Src/console.c:103:13:console_process_bytes	11
+../Core/Src/console.c:145:13:cmd_led	5
+../Core/Src/console.c:166:13:cmd_help	2
