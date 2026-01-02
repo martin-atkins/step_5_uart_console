@@ -261,7 +261,10 @@ That’s intentional — we haven’t added character echo yet.
 ## Next steps...
 * Once this is building, it will just echo text lines in the connected console
 * Next...
-  * Add command parsing
-  * Control `led.mode` from console
-  * Add backspace support
-  * Add DMA TX
+  * Immediate character echo and Backspace handling
+  * Adding a Prompt (`> `)
+  * Commands to control LED modes
+    * Add command parsing
+    * Control `led.mode` from console
+    * Add backspace support
+    * Add DMA TX
