@@ -1,3 +1,6 @@
-../Core/Src/console.c:18:6:console_init	1
-../Core/Src/console.c:29:6:task_console	5
-../Core/Src/console.c:66:13:console_process_bytes	6
+../Core/Src/console.c:18:13:console_prompt	1
+../Core/Src/console.c:28:13:console_write	1
+../Core/Src/console.c:38:13:console_handle_command	2
+../Core/Src/console.c:51:6:console_init	1
+../Core/Src/console.c:64:6:task_console	5
+../Core/Src/console.c:101:13:console_process_bytes	11

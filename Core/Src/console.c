@@ -15,6 +15,39 @@ static uint8_t line_len = 0;
 
 static void console_process_bytes(uint8_t *data, uint16_t len);
 
+static void console_prompt(void)
+{
+    HAL_UART_Transmit(
+        &huart2,
+        (uint8_t *)"> ",
+        2,
+        HAL_MAX_DELAY
+    );
+}
+
+static void console_write(const char *s)
+{
+    HAL_UART_Transmit(
+        &huart2,
+        (uint8_t *)s,
+        strlen(s),
+        HAL_MAX_DELAY
+    );
+}
+
+static void console_handle_command(const char *cmd)
+{
+	static const char help_msg[] =
+	    "help, led off, led slow, led fast\r\n";
+
+    if (strcmp(cmd, "help") == 0)
+    {
+        console_write("help, led off, led slow, led fast\r\n");
+    }
+
+    console_prompt();
+}
+
 void console_init(void)
 {
     HAL_UART_Receive_DMA(
@@ -24,6 +57,8 @@ void console_init(void)
     );
 
     __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);
+
+    console_prompt();
 }
 
 void task_console(void)
@@ -69,33 +104,60 @@ static void console_process_bytes(uint8_t *data, uint16_t len)
     {
         char c = data[i];
 
+        /* ENTER */
         if (c == '\r' || c == '\n')
         {
+            HAL_UART_Transmit(
+                &huart2,
+                (uint8_t *)"\r\n",
+                2,
+                HAL_MAX_DELAY
+            );
+
             if (line_len > 0)
             {
                 line_buf[line_len] = '\0';
-                HAL_UART_Transmit(
-                    &huart2,
-                    (uint8_t *)line_buf,
-                    line_len,
-                    HAL_MAX_DELAY
-                );
-                HAL_UART_Transmit(
-                    &huart2,
-                    (uint8_t *)"\r\n",
-                    2,
-                    HAL_MAX_DELAY
-                );
+                console_handle_command(line_buf);
                 line_len = 0;
             }
         }
-        else if (line_len < LINE_BUF_SIZE - 1)
+
+        /* BACKSPACE */
+        else if (c == 0x08 || c == 0x7F)
         {
-            line_buf[line_len++] = c;
+            if (line_len > 0)
+            {
+                line_len--;
+
+                /* erase character on terminal */
+                HAL_UART_Transmit(
+                    &huart2,
+                    (uint8_t *)"\b \b",
+                    3,
+                    HAL_MAX_DELAY
+                );
+            }
         }
-        else
+
+        /* PRINTABLE CHARACTER */
+        else if (c >= 0x20 && c <= 0x7E)
         {
-            line_len = 0;
+            if (line_len < LINE_BUF_SIZE - 1)
+            {
+                line_buf[line_len++] = c;
+
+                /* echo */
+                HAL_UART_Transmit(
+                    &huart2,
+                    (uint8_t *)&c,
+                    1,
+                    HAL_MAX_DELAY
+                );
+            }
+            else
+            {
+                /* optional: bell or ignore */
+            }
         }
     }
 }
