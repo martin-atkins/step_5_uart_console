@@ -567,4 +567,152 @@ We've just built:
 * Proper module boundaries
 * Console commands bound to real system behaviour
 
-This is no longer "LED blink training"; this is the skeleton of a profesional-level firmware project
+## Final few steps on this bit
+To: 
+* extend the console in a useful, inspectable way
+* force clean read-only access to system state
+
+Add two commands:
+* `uptime` → machine-friendly uptime only
+* `status` → human-readable summary
+
+No changes to the scheduler, DMA, or LED logic
+
+### Expose `uptime` cleanly
+We already have this in `main.c`:
+```c
+volatile uint32_t system_tick_ms = 0;
+```
+
+We need to leave this alone, but add the following, in `main.h`:
+```c
+uint32_t system_uptime_ms(void);
+```
+
+And this in `main.c`:
+```c
+uint32_t system_uptime_ms(void)
+{
+    return system_tick_ms;
+}
+```
+
+### Human-readable LED mode string
+This is still not console logic; it belongs with LED control
+
+In `main.c`:
+```c
+const char *led_mode_str(led_mode_t mode)
+{
+    switch (mode)
+    {
+        case LED_MODE_OFF:  return "off";
+        case LED_MODE_SLOW: return "slow";
+        case LED_MODE_FAST: return "fast";
+        default:            return "unknown";
+    }
+}
+```
+
+Declare this in `main.h`:
+```c
+const char *led_mode_str(led_mode_t mode);
+```
+
+### Implement uptime command
+In `console.c`:
+```c
+static void cmd_uptime(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    uint32_t ms = system_uptime_ms();
+
+    char buf[32];
+
+    uint32_t sec = ms / 1000;
+    uint32_t min = sec / 60;
+    uint32_t hr  = min / 60;
+
+    snprintf(
+        buf,
+        sizeof(buf),
+        "%lu:%02lu:%02lu\r\n",
+        hr,
+        min % 60,
+        sec % 60
+    );
+
+    console_write(buf);
+
+	console_prompt();
+}
+```
+
+This format is intentional:
+* Fixed width
+* Readable
+* Easy to parse later if needed
+
+### Implement a `status` command
+Firstly, we need to include the standard library header that declares `snprintf()`. Add this at the top of `console.c`:
+```c
+#include <stdio.h>
+```
+
+Then add the following function:
+```c
+static void cmd_status(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    char buf[64];
+
+    snprintf(
+        buf,
+        sizeof(buf),
+        "led=%s uptime=%lu ms\r\n",
+        led_mode_str(led_get_mode()),
+        system_uptime_ms()
+    );
+
+    console_write(buf);
+}
+```
+
+This provides a one-line snapshot suitable for scripts
+
+### Add them to the command table
+Update the command table:
+```c
+static const console_cmd_t cmd_table[] =
+{
+    { "help",   cmd_help,   "show this help" },
+    { "status", cmd_status, "system status" },
+    { "uptime", cmd_uptime, "system uptime" },
+    { "led",    cmd_led,    "led off|slow|fast" },
+};
+```
+
+## Commands to test
+Try these, in this order:
+```
+help
+status
+uptime
+led fast
+status
+led slow
+status
+```
+
+We should see:
+* LED mode change immediately
+* Status reflect reality
+* Uptime monotonically increasing
+
+If anything is out of sync, we fix it
+
+**All good here!**
