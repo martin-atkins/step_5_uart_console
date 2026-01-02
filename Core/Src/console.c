@@ -2,6 +2,7 @@
 #include "usart.h"
 #include "dma.h"
 #include <string.h>
+#include <stdio.h>
 
 #define UART_RX_DMA_BUF_SIZE 128
 #define LINE_BUF_SIZE 64
@@ -16,10 +17,16 @@ typedef struct {
 
 static void cmd_led(int argc, char *argv[]);
 static void cmd_help(int argc, char *argv[]);
+static void cmd_uptime(int argc, char *argv[]);
+static void cmd_status(int argc, char *argv[]);
 
-static const console_cmd_t cmd_table[] = {
-		{ "help", cmd_help, "show this help" }, { "led", cmd_led,
-				"led off|slow|fast" }, };
+static const console_cmd_t cmd_table[] =
+{
+	{ "help",   cmd_help,   "show this help" },
+	{ "status", cmd_status, "system status" },
+	{ "uptime", cmd_uptime, "system uptime" },
+	{ "led",    cmd_led,    "led off|slow|fast" },
+};
 
 #define CMD_COUNT (sizeof(cmd_table) / sizeof(cmd_table[0]))
 
@@ -142,6 +149,24 @@ static void console_process_bytes(uint8_t *data, uint16_t len) {
 	}
 }
 
+static void cmd_status(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    char buf[64];
+
+    snprintf(
+        buf,
+        sizeof(buf),
+        "led=%s uptime=%lu ms\r\n",
+        led_mode_str(led_get_mode()),
+        system_uptime_ms()
+    );
+
+    console_write(buf);
+}
+
 static void cmd_led(int argc, char *argv[]) {
 	if (argc < 2) {
 		console_write("usage: led off|slow|fast\r\n");
@@ -173,6 +198,33 @@ static void cmd_help(int argc, char *argv[]) {
 		console_write(cmd_table[i].help);
 		console_write("\r\n");
 	}
+
+	console_prompt();
+}
+
+static void cmd_uptime(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    uint32_t ms = system_uptime_ms();
+
+    char buf[32];
+
+    uint32_t sec = ms / 1000;
+    uint32_t min = sec / 60;
+    uint32_t hr  = min / 60;
+
+    snprintf(
+        buf,
+        sizeof(buf),
+        "%lu:%02lu:%02lu\r\n",
+        hr,
+        min % 60,
+        sec % 60
+    );
+
+    console_write(buf);
 
 	console_prompt();
 }

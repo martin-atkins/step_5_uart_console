@@ -61,6 +61,8 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void led_set_mode(led_mode_t mode);
 led_mode_t led_get_mode(void);
+uint32_t system_uptime_ms(void);
+const char *led_mode_str(led_mode_t mode);
 
 /* USER CODE END EFP */
 

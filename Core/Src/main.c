@@ -218,14 +218,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	}
 }
 
-void led_set_mode(led_mode_t mode)
-{
-    led.mode = mode;
+uint32_t system_uptime_ms(void) {
+	return system_tick_ms;
 }
 
-led_mode_t led_get_mode(void)
-{
-    return led.mode;
+void led_set_mode(led_mode_t mode) {
+	led.mode = mode;
+}
+
+led_mode_t led_get_mode(void) {
+	return led.mode;
+}
+
+const char* led_mode_str(led_mode_t mode) {
+	switch (mode) {
+	case LED_MODE_OFF:
+		return "off";
+	case LED_MODE_SLOW:
+		return "slow";
+	case LED_MODE_FAST:
+		return "fast";
+	default:
+		return "unknown";
+	}
 }
 
 void led_update(led_ctrl_t *ctrl, uint32_t now_ms) {
