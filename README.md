@@ -62,7 +62,7 @@ This will create:
 
 Until this exists, **nothing UART-related can compile**
 
-## STEP 2: Create console.h
+## Step 2: Create console.h
 Create `Core/Inc/console.h`:
 ```c
 #ifndef CONSOLE_H
@@ -74,7 +74,7 @@ void task_console(void);
 #endif
 ```
 
-## STEP 3: Create console.c (this is where UART lives)
+## Step 3: Create console.c (this is where UART lives)
 Create `Core/Src/console.c`:
 ```c
 #include "console.h"
@@ -188,7 +188,7 @@ static void console_process_bytes(uint8_t *data, uint16_t len)
     }
 }
 ```
-## STEP 4: Hook the USART2 IRQ
+## Step 4: Hook the USART2 IRQ
 In `stm32f4xx_it.c` update the stub function to include this user code:
 ```c
 void USART2_IRQHandler(void)
@@ -261,10 +261,132 @@ That’s intentional — we haven’t added character echo yet.
 ## Next steps...
 * Once this is building, it will just echo text lines in the connected console
 * Next...
-  * Immediate character echo and Backspace handling
-  * Adding a Prompt (`> `)
-  * Commands to control LED modes
+  * Step 6.1 : Immediate character echo and Backspace handling
+  * Step 6.2 : Adding a Prompt (`> `)
+  * Step 6.3 : Commands to control LED modes
     * Add command parsing
     * Control `led.mode` from console
     * Add backspace support
     * Add DMA TX
+
+## Step 6.1: 
+Add **immediate echo** and **proper backspace handling**, without breaking:
+* DMA RX
+* Your scheduler
+* Low-power `__WFI()`
+
+### Target behaviour
+After this change:
+* Each typed character appears immediately
+* Backspace:
+  * Removes the character from the line buffer
+  * Erases it on the terminal ("\b \b")
+* Enter:
+  * Ends the line
+  * Processes the command
+* Buffer overflow handled safely
+
+**This change lives only in `console.c`**
+* No changes to:
+  * main.c
+  * Scheduler
+  * DMA setup
+  * IRQs
+ 
+### Recognise control characters
+The terminal will send:
+
+| Key       | Value            |
+| --------- | ---------------- |
+| Backspace | `0x08` or `0x7F` |
+| Enter     | `'\r'` or `'\n'` |
+
+We need to handle both
+
+### Update console_process_bytes()
+Replace the existing function with this:
+```c
+static void console_process_bytes(uint8_t *data, uint16_t len)
+{
+    for (uint16_t i = 0; i < len; i++)
+    {
+        char c = data[i];
+
+        /* ENTER */
+        if (c == '\r' || c == '\n')
+        {
+            HAL_UART_Transmit(
+                &huart2,
+                (uint8_t *)"\r\n",
+                2,
+                HAL_MAX_DELAY
+            );
+
+            if (line_len > 0)
+            {
+                line_buf[line_len] = '\0';
+                console_handle_command(line_buf);
+                line_len = 0;
+            }
+        }
+
+        /* BACKSPACE */
+        else if (c == 0x08 || c == 0x7F)
+        {
+            if (line_len > 0)
+            {
+                line_len--;
+
+                /* erase character on terminal */
+                HAL_UART_Transmit(
+                    &huart2,
+                    (uint8_t *)"\b \b",
+                    3,
+                    HAL_MAX_DELAY
+                );
+            }
+        }
+
+        /* PRINTABLE CHARACTER */
+        else if (c >= 0x20 && c <= 0x7E)
+        {
+            if (line_len < LINE_BUF_SIZE - 1)
+            {
+                line_buf[line_len++] = c;
+
+                /* echo */
+                HAL_UART_Transmit(
+                    &huart2,
+                    (uint8_t *)&c,
+                    1,
+                    HAL_MAX_DELAY
+                );
+            }
+            else
+            {
+                /* optional: bell or ignore */
+            }
+        }
+    }
+}
+```
+
+## Step 6.2: Add a prompt
+After handling a command, print a prompt:
+```c
+static void console_prompt(void)
+{
+    HAL_UART_Transmit(
+        &huart2,
+        (uint8_t *)"> ",
+        2,
+        HAL_MAX_DELAY
+    );
+}
+```
+
+Call it:
+* Once at end of `console_init()`
+* After each command completes
+
+This makes the console feel a little more professional
