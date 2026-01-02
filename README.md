@@ -265,9 +265,12 @@ That’s intentional — we haven’t added character echo yet.
   * Step 6.2 : Adding a Prompt (`> `)
   * Step 6.3 : Commands to control LED modes
     * Add command parsing
-    * Control `led.mode` from console
-    * Add backspace support
+      * Command table `(struct { name, fn })`
+      * Used to control `led.mode` from console
+    * Command history (↑ ↓)
+    * Tab completion
     * Add DMA TX
+    * Redirect `printf()`
 
 ## Step 6.1: 
 Add **immediate echo** and **proper backspace handling**, without breaking:
@@ -390,3 +393,178 @@ Call it:
 * After each command completes
 
 This makes the console feel a little more professional
+
+## Step 6.3: Bind console commands to the existing LED modes
+1. Introduce a **command table** (data-driven, not if/else soup)
+2. Bind commands to **the existing LED modes** (no new LED logic)
+3. Keep parsing / execution cleanly separated
+4. Leave this set-up as a future reference for easy expansion later
+
+### Define the command concept
+Each command needs:
+* a name (`"led"`)
+* a handler function
+* a short help string
+
+**Add this to `console.c`:**
+```c
+typedef void (*console_cmd_fn_t)(int argc, char *argv[]);
+
+typedef struct
+{
+    const char        *name;
+    console_cmd_fn_t   fn;
+    const char        *help;
+} console_cmd_t;
+```
+
+### Expose LED control cleanly (important)
+Right now, the LED logic lives in `main.c` and that’s good — we won’t break it.
+
+What we need is **one small interface** the console can call.
+
+In `main.h`, add:
+```c
+typedef enum
+{
+    LED_MODE_OFF = 0,
+    LED_MODE_SLOW,
+    LED_MODE_FAST
+} led_mode_t;
+
+void led_set_mode(led_mode_t mode);
+led_mode_t led_get_mode(void);
+```
+
+In `main.c`, add implementations (near your other LED code):
+```c
+void led_set_mode(led_mode_t mode)
+{
+    led.mode = mode;
+}
+
+led_mode_t led_get_mode(void)
+{
+    return led.mode;
+}
+```
+
+* Now the console never touches GPIOs
+* It only expresses _intent_
+* This is exactly how bigger systems are structured
+
+### Implement the LED command
+In `console.c`:
+```c
+static void cmd_led(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
+        console_write("usage: led off|slow|fast\r\n");
+        return;
+    }
+
+    if (strcmp(argv[1], "off") == 0)
+    {
+        led_set_mode(LED_MODE_OFF);
+    }
+    else if (strcmp(argv[1], "slow") == 0)
+    {
+        led_set_mode(LED_MODE_SLOW);
+    }
+    else if (strcmp(argv[1], "fast") == 0)
+    {
+        led_set_mode(LED_MODE_FAST);
+    }
+    else
+    {
+        console_write("invalid mode\r\n");
+        return;
+    }
+
+    console_write("ok\r\n");
+}
+```
+
+This binds **directly** to the existing LED behaviour: no duplication; no hacks
+
+### Implement help
+Add the following:
+```c
+static void cmd_help(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    for (size_t i = 0; i < CMD_COUNT; i++)
+    {
+        console_write(cmd_table[i].name);
+        console_write(" - ");
+        console_write(cmd_table[i].help);
+        console_write("\r\n");
+    }
+}
+```
+
+### Build the command table
+At file scope in `console.c`:
+```c
+static const console_cmd_t cmd_table[] =
+{
+    { "help", cmd_help, "show this help" },
+    { "led",  cmd_led,  "led off|slow|fast" },
+};
+
+#define CMD_COUNT (sizeof(cmd_table) / sizeof(cmd_table[0]))
+```
+
+This is the heart of the design.
+
+To add a new command later:
+
+* write a function
+* add one row
+
+No parser changes. No spaghetti
+
+### Dispatch commands from your line handler
+Update `console_handle_command()` and call when **Enter** is pressed:
+```c
+static void console_execute(char *line)
+{
+    char *argv[8];
+    int argc = 0;
+
+    char *token = strtok(line, " ");
+    while (token && argc < 8)
+    {
+        argv[argc++] = token;
+        token = strtok(NULL, " ");
+    }
+
+    if (argc == 0)
+        return;
+
+    for (size_t i = 0; i < CMD_COUNT; i++)
+    {
+        if (strcmp(argv[0], cmd_table[i].name) == 0)
+        {
+            cmd_table[i].fn(argc, argv);
+            return;
+        }
+    }
+
+    console_write("unknown command\r\n");
+    console_prompt();
+}
+```
+
+### What we now have
+We've just built:
+* A non-blocking DMA UART console
+* Immediate echo + backspace
+* A table-driven command interpreter
+* Proper module boundaries
+* Console commands bound to real system behaviour
+
+This is no longer "LED blink training"; this is the skeleton of a profesional-level firmware project
