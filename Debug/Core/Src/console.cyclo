@@ -1,0 +1,3 @@
+../Core/Src/console.c:18:6:console_init	1
+../Core/Src/console.c:29:6:task_console	5
+../Core/Src/console.c:66:13:console_process_bytes	6

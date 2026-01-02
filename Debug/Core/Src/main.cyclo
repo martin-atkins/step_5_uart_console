@@ -1,0 +1,10 @@
+../Core/Src/main.c:110:5:main	4
+../Core/Src/main.c:169:6:SystemClock_Config	3
+../Core/Src/main.c:209:6:HAL_GPIO_EXTI_Callback	3
+../Core/Src/main.c:218:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:224:6:led_update	7
+../Core/Src/main.c:251:9:button_debounce_update	4
+../Core/Src/main.c:264:6:task_led	1
+../Core/Src/main.c:268:6:task_button	3
+../Core/Src/main.c:277:6:task_idle	1
+../Core/Src/main.c:287:6:Error_Handler	1
